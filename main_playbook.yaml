@@ -1,0 +1,209 @@
+- name: Setup locale and root user
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Get timezone from internet
+      ansible.builtin.uri:
+        url: http://ipinfo.io/timezone
+        return_content: true
+      register: response
+    - name: Set the timezone
+      ansible.builtin.file:
+        src: /usr/share/zoneinfo/{{ response.content }}
+        dest: /etc/localtime
+        state: link
+    - name: Set the hwclock
+      ansible.builtin.command: /sbin/hwclock --systohc
+      # NOTE: Be aware that this task will always show as unchanged
+      changed_when: false
+    - name: Generate locale
+      ansible.builtin.command: locale-gen
+      # NOTE: Be aware that this task will always show as unchanged
+      changed_when: false
+    - name: Set locale
+      ansible.builtin.lineinfile:
+        create: true
+        path: /etc/locale.gen
+        line: en_US.UTF-8 UTF-8
+        owner: root
+        mode: "0644"
+    - name: Set the hostname
+      ansible.builtin.hostname:
+        name: "{{ hostname }}"
+    - name: Set the root password
+      ansible.builtin.user:
+        name: root
+        password: "{{ root_password | password_hash('sha512') }}"
+        update_password: always
+    - name: Create groups
+      ansible.builtin.group:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ groups }}"
+    - name: Create "omar" user
+      ansible.builtin.user:
+        name: "{{ username }}"
+        password: "{{ user_password | password_hash('sha512') }}"
+        update_password: always
+        shell: /bin/bash
+        home: /home/{{ username }}
+        createhome: yes
+        groups: "{{ groups }}"
+- name: Setup bootloader
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Set up bootloader (systemd-boot)
+      ansible.builtin.command: bootctl install
+      changed_when: false
+    - name: Set the bootloader configuration
+      ansible.builtin.template:
+        src: /root/ansible-playbook/templates/bootloader.conf.j2
+        dest: /boot/loader/loader.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reboot
+    # Get the microcode package name
+    - name: Get the processor vendor
+      ansible.builtin.set_fact:
+        processor_vendor: "{{ ansible_processor[1] }}"
+    - name: Set the name of the microcode
+      ansible.builtin.set_fact:
+        microcode_name: "{{ 'intel-ucode' if processor_vendor == 'GenuineIntel' else 'amd-ucode' }}"
+    - name: Install the microcode
+      community.general.pacman:
+        name: "{{ microcode_name }}"
+        state: present
+    - name: Get root partition
+      ansible.builtin.command: lsblk -o NAME,TYPE,MOUNTPOINT | grep '/$' | cut -d ' ' -f1 | tr -cd '[:alnum:]'
+      changed_when: true
+      register: root_partition
+    - name: Set the arch boot configuration
+      ansible.builtin.template:
+        src: /root/ansible-playbook/templates/bootarch.conf.j2
+        dest: /boot/loader/entries/arch.conf
+        owner: root
+        group: root
+        mode: "0644"
+      notify: Reboot
+- name: Setup the system
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Install base packages
+      community.general.pacman:
+        name:
+          - git
+          - base-devel
+        state: present
+    - name: Check if paru is installed
+      ansible.builtin.stat:
+        path: /usr/bin/paru
+      register: paru_installed
+    - name: Clone paru
+      when: paru_installed.stat.exists == false
+      community.general.git:
+        repo: "https://aur.archlinux.org/paru.git"
+        dest: /tmp/paru
+        update: no
+    - name: Build and install paru
+      when: paru_installed.stat.exists == false
+      ansible.builtin.command: makepkg -si
+      args:
+        chdir: /tmp/paru
+      register: paru_install_res
+      changed_when: paru_install_res.rc == 0
+      become: true
+      become_user: "{{ username }}"
+    - name: Get pacman package list from gist
+      ansible.builtin.uri:
+        url: https://api.github.com/gists/{{ pagman_pkg_gist_id }}
+        method: GET
+        dest: /tmp/pacman_packages
+        unredirected_headers:
+          - Authorization
+        headers:
+          authorization: "Bearer {{ GH_PAT }}"
+    - name: Get aur package list from gist
+      ansible.builtin.uri:
+        url: https://api.github.com/gists/{{ aur_pkg_gist_id }}
+        method: GET
+        dest: /tmp/aur_packages
+        unredirected_headers:
+          - Authorization
+        headers:
+          authorization: "Bearer {{ GH_PAT }}"
+    - name: Install pacman packages
+      community.general.pacman:
+        name: "{{ lookup('file', '/tmp/pacman_packages') | split('\n') }}"
+        state: "latest"
+        update_cache: true
+    - name: Install aur packages
+      community.general.pacman:
+        executable: /usr/bin/paru
+        name: "{{ lookup('file', '/tmp/aur_packages') | split('\n') }}"
+        state: present
+        update_cache: true
+        become: true
+        become_user: "{{ username }}"
+    # NOTE: Cargo should be install by the pacman module
+    - name: Setup cargo packages
+      community.general.cargo:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ cargo_pkgs }}"
+- name: Clone dotfiles
+  hosts: localhost
+  connection: local
+  become: true
+  become_user: "{{ username }}"
+  tasks:
+    - name: Clone dotfiles
+      ansible.builtin.git:
+        repo: "{{ dotfiles_repo }}"
+        bare: yes
+        accept_newhostkey: yes
+        separate_git_dir: /home/{{ username }}/.dotfiles
+        dest: /home/{{ username }}/
+- name: Setup xmonad
+  connection: local
+  hosts: localhost
+  become: true
+  become_user: "{{ username }}"
+  tasks:
+    - name: Clone xmonad to the `.xmonad` dir
+      ansible.builtin.git:
+        repo: https://github.com/xmonad/xmonad
+        dest: /home/{{ username }}/.xmonad/xmonad
+        accept_newhostkey: yes
+    - name: Clone the xmonad-contrib to the `.xmonad` dir
+      ansible.builtin.git:
+        repo: https://github.com/xmonad/xmonad-contrib
+        dest: /home/{{ username }}/.xmonad/xmonad-contrib
+        accept_newhostkey: yes
+    - name: Get the ghcup install script
+      ansible.builtin.get_url:
+        url: https://get-ghcup.haskell.org
+        dest: /tmp/ghcup
+        mode: "0755"
+    - name: Run the ghcup install script
+      ansible.builtin.command: /tmp/ghcup
+      changed_when: true
+    - name: Install ghc
+      ansible.builtin.command: ghcup install ghc latest
+      changed_when: true
+    - name: Install cabal
+      ansible.builtin.command: ghcup install cabal recommended
+      changed_when: true
+    - name: Install stack
+      ansible.builtin.command: ghcup install stack recommended
+      changed_when: true
+    - name: Install xmonad
+      ansible.builtin.command: stack install
+      register: xmonad_install_res
+      changed_when: xmomad_install_res.rc == 0
+    - name: Compile xmonad
+      ansible.builtin.command: xmonad --recompile
+      register: xmonad_recompile_res
+      changed_when: xmonad_recompile_res.rc == 0
