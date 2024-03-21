@@ -1,0 +1,32 @@
+username: "omar"
+hostname: "BIGARCH"
+groups:
+ - vboxusers
+ - libvirt
+ - docker
+ - video
+ - storage
+ - kvm
+ - input
+ - disk
+ - audio
+ - wheel
+ - omar
+ - informant
+cargo_pkgs:
+ - ast-grep
+ - bat
+ - cargo-audit
+ - cargo-binstall
+ - cargo-cache
+ - cargo-edit
+ - cargo-expand
+ - cargo-outdated
+ - cargo-script
+ - cargo-update
+ - cargo-watch
+ - htmx-lsp
+ - scriptisto
+ - tealdeer
+ - topgrade
+ - zoxide
