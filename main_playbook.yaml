@@ -96,7 +96,14 @@
         name:
           - git
           - base-devel
+          - pacman-contrib
         state: present
+    - name: Backup mirrorlist
+      ansible.builtin.copy:
+        src: /etc/pacman.d/mirrorlist
+        dest: /etc/pacman.d/mirrorlist.bak
+    - name: Update mirror list
+      ansible.builtin.command: rankmirrors -p -n 10 -m 5 -w
     - name: Check if paru is installed
       ansible.builtin.stat:
         path: /usr/bin/paru
