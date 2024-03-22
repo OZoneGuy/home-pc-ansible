@@ -9,7 +9,7 @@
       register: response
     - name: Set the timezone
       ansible.builtin.file:
-        src: /usr/share/zoneinfo/{{ response.content }}
+        src: /usr/share/zoneinfo/{{ response.content | regex_replace('\n', '')}}
         dest: /etc/localtime
         state: link
     - name: Set the hwclock
@@ -28,8 +28,12 @@
         owner: root
         mode: "0644"
     - name: Set the hostname
-      ansible.builtin.hostname:
-        name: "{{ hostname }}"
+      ansible.builtin.template:
+        src: /root/ansible-playbook/templates/hostname.j2
+        dest: /etc/hostname
+        owner: root
+        group: root
+        mode: "0644"
     - name: Set the root password
       ansible.builtin.user:
         name: root
@@ -39,7 +43,7 @@
       ansible.builtin.group:
         name: "{{ item }}"
         state: present
-      loop: "{{ groups }}"
+      loop: "{{ user_groups }}"
     - name: Create "omar" user
       ansible.builtin.user:
         name: "{{ username }}"
@@ -48,7 +52,12 @@
         shell: /bin/bash
         home: /home/{{ username }}
         createhome: yes
-        groups: "{{ groups }}"
+        groups: "{{ user_groups }}"
+    - name: Add to sudoers
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "%wheel ALL=(ALL) ALL"
+        validate: 'visudo -cf %s'
 - name: Setup bootloader
   hosts: localhost
   connection: local
@@ -78,9 +87,12 @@
         name: "{{ microcode_name }}"
         state: present
     - name: Get root partition
-      ansible.builtin.command: lsblk -o NAME,TYPE,MOUNTPOINT | grep '/$' | cut -d ' ' -f1 | tr -cd '[:alnum:]'
+      ansible.builtin.shell: lsblk -o NAME,TYPE,MOUNTPOINT | grep '/$' | cut -d ' ' -f1 | tr -cd '[:alnum:]'
       changed_when: true
-      register: root_partition
+      register: root_partition_out
+    - name: Set root_partition
+      ansible.builtin.set_fact:
+        root_partition: "{{ root_partition_out.stdout }}"
     - name: Set the arch boot configuration
       ansible.builtin.template:
         src: /root/ansible-playbook/templates/bootarch.conf.j2
@@ -88,7 +100,6 @@
         owner: root
         group: root
         mode: "0644"
-      notify: Reboot
 - name: Setup the system
   hosts: localhost
   connection: local

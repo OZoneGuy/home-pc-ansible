@@ -1,6 +1,6 @@
 username: "omar"
 hostname: "BIGARCH"
-groups:
+user_groups:
  - vboxusers
  - libvirt
  - docker
