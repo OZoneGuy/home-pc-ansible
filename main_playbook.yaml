@@ -197,15 +197,20 @@
         name: "{{ lookup('file', '/tmp/pacman_packages') | split('\n') }}"
         state: "latest"
         update_cache: true
+    - name: set pacman to not require password
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: "{{ username }} {{ hostname }} = (root) NOPASSWD: /usr/bin/pacman"
+        validate: 'visudo -cf %s'
     - name: Install aur packages
-      community.general.pacman:
-        executable: /usr/bin/paru
-        name: "{{ lookup('file', '/tmp/aur_packages') | split('\n') }}"
-        state: present
-        update_cache: true
-        # NOTE: Not sure if this is even supported. But is required to install aur packages
-        become: true
-        become_user: "{{ username }}"
+      ansible.builtin.command:
+        cmd: su {{ username }} -c "paru -S --noconfirm --skipreview $(cat /tmp/aur_packages)"
+    - name: Remove the passwordless sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        state: absent
+        regexp: "{{ username }} {{ hostname }} = (root) NOPASSWD: /usr/bin/pacman"
+        validate: 'visudo -cf %s'
     - name: Setup cargo packages
       community.general.cargo:
         name: "{{ item }}"
