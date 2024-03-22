@@ -110,6 +110,12 @@
           - git
           - base-devel
           - pacman-contrib
+          - pacman-mirrorlist
+          - parallel
+          - rustup
+          - python-pexpect # Needed for the expect module
+          - expect
+          - python-jmespath # Needed for json_query
         state: present
     - name: Backup mirrorlist
       ansible.builtin.copy:
