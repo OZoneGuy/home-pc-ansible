@@ -54,7 +54,9 @@
   connection: local
   tasks:
     - name: Set up bootloader (systemd-boot)
-      ansible.builtin.command: bootctl install
+      ansible.builtin.command:
+        cmd: bootctl install
+        creates: /boot/EFI/systemd/systemd-bootx64.efi
       changed_when: false
     - name: Set the bootloader configuration
       ansible.builtin.template:
@@ -116,8 +118,9 @@
         update: no
     - name: Build and install paru
       when: paru_installed.stat.exists == false
-      ansible.builtin.command: makepkg -si
-      args:
+      ansible.builtin.command:
+        cmd: makepkg -si
+        creates: /usr/bin/paru
         chdir: /tmp/paru
       register: paru_install_res
       changed_when: paru_install_res.rc == 0
@@ -229,7 +232,9 @@
         dest: /tmp/ghcup
         mode: "0755"
     - name: Run the ghcup install script
-      ansible.builtin.command: /tmp/ghcup
+      ansible.builtin.command:
+        cmd: /tmp/ghcup
+        creates: /home/{{ username }}/.ghcup/bin/ghcup
       changed_when: true
     - name: Install ghc
       ansible.builtin.command: ghcup install ghc latest
