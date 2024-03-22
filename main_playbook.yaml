@@ -207,3 +207,39 @@
       ansible.builtin.command: xmonad --recompile
       register: xmonad_recompile_res
       changed_when: xmonad_recompile_res.rc == 0
+- name: Setup systemd units
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Get the systemd units 
+      ansible.builtin.find:
+        paths: /home/{{ username }}/.systemd
+        file_type: file
+      register: systemd_units
+    - name: Set up the systemd units
+      ansible.builtin.template:
+        src: "{{ item.path }}"
+        dest: /etc/systemd/system/{{ item.path | basename }}
+        owner: root
+        group: root
+        mode: "0644"
+      loop: "{{ systemd_units.files }}"
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: yes
+        state: reloaded
+    - name: Clone activity-reporter
+      ansible.builtin.git:
+        repo: git@github.com:OZoneGuy/activity-reporter.git
+        dest: /home/{{ username }}/projects/activity-reporter
+    - name: Install activity-reporter
+      ansible.builtin.command: 
+        cmd: go install
+        chdir: /home/{{ username }}/projects/activity-reporter
+        creates: /home/{{ username }}/go/bin/activity-reporter
+    - name: Enable units
+      ansible.builtin.systemd:
+        name: "{{ item.path | basename }}"
+        enabled: yes
+        state: started
+      loop: "{{ systemd_units.files }}"
