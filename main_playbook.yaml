@@ -104,6 +104,11 @@
   hosts: localhost
   connection: local
   tasks:
+    - name: Enable multilib for pacman 
+      ansible.builtin.replace:
+        path: /etc/pacman.conf
+        regexp: "^#(\\[multilib\\]).*\n^#(Include.*?mirrorlist)$"
+        replace: "\\1\n\\2"
     - name: Install base packages
       community.general.pacman:
         name:
@@ -122,11 +127,46 @@
         curl -s "https://archlinux.org/mirrorlist/?country=FR&country=GB&protocol=https&use_mirror_status=on" |\
          sed -e 's/^#Server/Server/' -e '/^#/d' |\
          rankmirrors -p -n 10 -m 5 -w -
+    - name: Get pacman package list from gist
+      ansible.builtin.uri:
+        url: "https://api.github.com/gists/{{ pacman_pkg_gist_id }}"
+        method: GET
+        unredirected_headers:
+          - Authorization
+        headers:
+          authorization: "Bearer {{ GH_PAT }}"
+      register: pacman_pkg_list_resp
+    - name: Get aur package list from gist
+      ansible.builtin.uri:
+        url: "https://api.github.com/gists/{{ aur_pkg_gist_id }}"
+        method: GET
+        unredirected_headers:
+          - Authorization
+        headers:
+          authorization: "Bearer {{ GH_PAT }}"
+      register: aur_pkg_list_resp
+    - name: Write pacman package list to file
+      ansible.builtin.copy:
+        content: "{{ pacman_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
+        dest: /tmp/pacman_packages
+    - name: Write aur package list to file
+      ansible.builtin.copy:
+        content: "{{ aur_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
+        dest: /tmp/aur_packages
+    - name: Install pacman packages
+      community.general.pacman:
+        name: "{{ lookup('file', '/tmp/pacman_packages') | split('\n') }}"
+        state: "latest"
+        update_cache: true
+- name: Setup user packages
+  hosts: localhost
+  connection: local
+  become: true
+  become_user: "{{ username }}"
+  tasks:
     - name: Setup rustup
       ansible.builtin.command: rustup default stable
       changed_when: true
-      become: true
-      become_user: "{{ username }}"
     - name: Check if paru is installed
       ansible.builtin.stat:
         path: /usr/bin/paru
@@ -164,53 +204,33 @@
             }
           }
       changed_when: true
-      become: true
-      become_user: "{{ username }}"
-    - name: Get pacman package list from gist
-      ansible.builtin.uri:
-        url: "https://api.github.com/gists/{{ pacman_pkg_gist_id }}"
-        method: GET
-        unredirected_headers:
-          - Authorization
-        headers:
-          authorization: "Bearer {{ GH_PAT }}"
-      register: pacman_pkg_list_resp
-    - name: Get aur package list from gist
-      ansible.builtin.uri:
-        url: "https://api.github.com/gists/{{ aur_pkg_gist_id }}"
-        method: GET
-        unredirected_headers:
-          - Authorization
-        headers:
-          authorization: "Bearer {{ GH_PAT }}"
-      register: aur_pkg_list_resp
-    - name: Write pacman package list to file
-      ansible.builtin.copy:
-        content: "{{ pacman_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
-        dest: /tmp/pacman_packages
-    - name: Write aur package list to file
-      ansible.builtin.copy:
-        content: "{{ aur_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
-        dest: /tmp/aur_packages
-    - name: Install pacman packages
-      community.general.pacman:
-        name: "{{ lookup('file', '/tmp/pacman_packages') | split('\n') }}"
-        state: "latest"
-        update_cache: true
-    - name: set pacman to not require password
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        line: "{{ username }} {{ hostname }} = (root) NOPASSWD: /usr/bin/pacman"
-        validate: 'visudo -cf %s'
+    # - name: Install aur packages
+    #   community.general.pacman:
+    #     executable: /usr/bin/paru
+    #     name: "{{ lookup('file', '/tmp/aur_packages') | split('\n') }}"
+    #     state: "latest"
+    #     update_cache: true
     - name: Install aur packages
-      ansible.builtin.command:
-        cmd: su {{ username }} -c "paru -S --noconfirm --skipreview $(cat /tmp/aur_packages)"
-    - name: Remove the passwordless sudo
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        state: absent
-        regexp: "{{ username }} {{ hostname }} = (root) NOPASSWD: /usr/bin/pacman"
-        validate: 'visudo -cf %s'
+      ansible.builtin.shell:
+        executable: /usr/bin/expect
+        cmd: |
+          set timeout 300
+          spawn /usr/bin/paru -Sy --noconfirm {{ lookup('file', '/tmp/aur_packages') | split('\n') | join(' ') }}
+          expect {
+            "*password for *" {
+              send -- "{{ user_password }}\n"
+              send_user "entering the passowrd"
+              exp_continue
+            }
+            "Proceed with installation?*" {
+              send -- "Y\n"
+              send_user "proceeding with installation"
+              exp_continue
+            }
+            eof {
+              send_user "reach eof"
+            }
+          }
     - name: Setup cargo packages
       community.general.cargo:
         name: "{{ item }}"
