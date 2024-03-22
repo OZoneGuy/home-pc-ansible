@@ -168,22 +168,30 @@
       become_user: "{{ username }}"
     - name: Get pacman package list from gist
       ansible.builtin.uri:
-        url: https://api.github.com/gists/{{ pagman_pkg_gist_id }}
+        url: "https://api.github.com/gists/{{ pacman_pkg_gist_id }}"
         method: GET
-        dest: /tmp/pacman_packages
         unredirected_headers:
           - Authorization
         headers:
           authorization: "Bearer {{ GH_PAT }}"
+      register: pacman_pkg_list_resp
     - name: Get aur package list from gist
       ansible.builtin.uri:
-        url: https://api.github.com/gists/{{ aur_pkg_gist_id }}
+        url: "https://api.github.com/gists/{{ aur_pkg_gist_id }}"
         method: GET
-        dest: /tmp/aur_packages
         unredirected_headers:
           - Authorization
         headers:
           authorization: "Bearer {{ GH_PAT }}"
+      register: aur_pkg_list_resp
+    - name: Write pacman package list to file
+      ansible.builtin.copy:
+        content: "{{ pacman_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
+        dest: /tmp/pacman_packages
+    - name: Write aur package list to file
+      ansible.builtin.copy:
+        content: "{{ aur_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
+        dest: /tmp/aur_packages
     - name: Install pacman packages
       community.general.pacman:
         name: "{{ lookup('file', '/tmp/pacman_packages') | split('\n') }}"
