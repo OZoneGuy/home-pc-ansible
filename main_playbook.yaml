@@ -117,12 +117,16 @@
           - expect
           - python-jmespath # Needed for json_query
         state: present
-    - name: Backup mirrorlist
-      ansible.builtin.copy:
-        src: /etc/pacman.d/mirrorlist
-        dest: /etc/pacman.d/mirrorlist.bak
     - name: Update mirror list
-      ansible.builtin.command: rankmirrors -p -n 10 -m 5 -w
+      ansible.builtin.shell: |
+        curl -s "https://archlinux.org/mirrorlist/?country=FR&country=GB&protocol=https&use_mirror_status=on" |\
+         sed -e 's/^#Server/Server/' -e '/^#/d' |\
+         rankmirrors -p -n 10 -m 5 -w -
+    - name: Setup rustup
+      ansible.builtin.command: rustup default stable
+      changed_when: true
+      become: true
+      become_user: "{{ username }}"
     - name: Check if paru is installed
       ansible.builtin.stat:
         path: /usr/bin/paru
