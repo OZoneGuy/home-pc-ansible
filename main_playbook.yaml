@@ -145,20 +145,47 @@
         name: "{{ lookup('file', '/tmp/aur_packages') | split('\n') }}"
         state: present
         update_cache: true
+        # NOTE: Not sure if this is even supported. But is required to install aur packages
         become: true
         become_user: "{{ username }}"
-    # NOTE: Cargo should be install by the pacman module
     - name: Setup cargo packages
       community.general.cargo:
         name: "{{ item }}"
         state: present
       loop: "{{ cargo_pkgs }}"
-- name: Clone dotfiles
+- name: Clone dotfiles and other config
   hosts: localhost
   connection: local
   become: true
   become_user: "{{ username }}"
   tasks:
+    - name: Create SSH key for github
+      community.crypto.openssh_keypair:
+        path: /home/{{ username }}/.ssh/github
+        type: rsa
+        size: 4096
+        state: present
+        owner: "{{ username }}"
+    - name: Add SSH key to agent
+      community.general.ssh_key:
+        keyfile: /home/{{ username }}/.ssh/github
+        state: present
+    - name: Add SSH key to config
+      community.general.ssh_config:
+        user: git
+        host: github.com
+        identityfile: /home/{{ username }}/.ssh/github
+        state: present
+    - name: Push ssh key to github
+      ansible.builtin.uri:
+        url: https://api.github.com/user/keys
+        method: POST
+        body_format: json
+        body:
+          title: "PC Key"
+          key: "{{ lookup('file', '/home/{{ username }}/.ssh/github.pub') }}"
+        headers:
+          Authorization: "Bearer {{ GH_PAT }}"
     - name: Clone dotfiles
       ansible.builtin.git:
         repo: "{{ dotfiles_repo }}"
