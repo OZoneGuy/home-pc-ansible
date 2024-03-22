@@ -133,18 +133,37 @@
       register: paru_installed
     - name: Clone paru
       when: paru_installed.stat.exists == false
-      community.general.git:
+      ansible.builtin.git:
         repo: "https://aur.archlinux.org/paru.git"
         dest: /tmp/paru
         update: no
+      become: true
+      become_user: "{{ username }}"
     - name: Build and install paru
       when: paru_installed.stat.exists == false
-      ansible.builtin.command:
-        cmd: makepkg -si
+      ansible.builtin.shell:
         creates: /usr/bin/paru
         chdir: /tmp/paru
-      register: paru_install_res
-      changed_when: paru_install_res.rc == 0
+        executable: /usr/bin/expect
+        cmd: |
+          set timeout 300
+          spawn makepkg -si
+          expect {
+            "*password for *" {
+              send -- "{{ user_password }}\n"
+              send_user "entering the passowrd"
+              exp_continue
+            }
+            "Proceed with installation?*" {
+              send -- "Y\n"
+              send_user "proceeding with installation"
+              exp_continue
+            }
+            eof {
+              send_user "reach eof"
+            }
+          }
+      changed_when: true
       become: true
       become_user: "{{ username }}"
     - name: Get pacman package list from gist
