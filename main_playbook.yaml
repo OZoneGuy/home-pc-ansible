@@ -166,6 +166,13 @@
         accept_newhostkey: yes
         separate_git_dir: /home/{{ username }}/.dotfiles
         dest: /home/{{ username }}/
+    - name: Copy crontab
+      ansible.builtin.template:
+        src: /root/ansible-playbook/templates/crontab.j2
+        dest: /home/{{ username }}/.config/crontab
+        owner: "{{ username }}"
+    - name: Load the new crontab
+      ansible.builtin.command: crontab /home/{{ username }}/.config/crontab
 - name: Setup xmonad
   connection: local
   hosts: localhost
