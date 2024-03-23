@@ -391,3 +391,16 @@
         enabled: yes
         state: started
       loop: "{{ systemd_units.files }}"
+- name: Clean up
+  connection: local
+  hosts: localhost
+  tasks:
+    - name: Delete unnecessary packages
+      community.general.pacman:
+        name:
+          - python-jmespath
+        state: absent
+    - name: Set user's shell
+      ansible.builtin.user:
+        name: "{{ username }}"
+        shell: /usr/bin/zsh
