@@ -140,26 +140,9 @@
         headers:
           authorization: "Bearer {{ GH_PAT }}"
       register: pacman_pkg_list_resp
-    - name: Get aur package list from gist
-      ansible.builtin.uri:
-        url: "https://api.github.com/gists/{{ aur_pkg_gist_id }}"
-        method: GET
-        unredirected_headers:
-          - Authorization
-        headers:
-          authorization: "Bearer {{ GH_PAT }}"
-      register: aur_pkg_list_resp
-    - name: Write pacman package list to file
-      ansible.builtin.copy:
-        content: "{{ pacman_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
-        dest: /tmp/pacman_packages
-    - name: Write aur package list to file
-      ansible.builtin.copy:
-        content: "{{ aur_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
-        dest: /tmp/aur_packages
     - name: Install pacman packages
       community.general.pacman:
-        name: "{{ lookup('file', '/tmp/pacman_packages') | split('\n') }}"
+        name: "{{ pacman_pkg_list_resp.json.files | dict2items | first | json_query('value.content') | split('\n') }}"
         state: "latest"
         update_cache: true
 - name: Setup user packages
@@ -214,6 +197,19 @@
     #     name: "{{ lookup('file', '/tmp/aur_packages') | split('\n') }}"
     #     state: "latest"
     #     update_cache: true
+    - name: Get aur package list from gist
+      ansible.builtin.uri:
+        url: "https://api.github.com/gists/{{ aur_pkg_gist_id }}"
+        method: GET
+        unredirected_headers:
+          - Authorization
+        headers:
+          authorization: "Bearer {{ GH_PAT }}"
+      register: aur_pkg_list_resp
+    - name: Write aur package list to file
+      ansible.builtin.copy:
+        content: "{{ aur_pkg_list_resp.json.files | dict2items | first | json_query('value.content') }}"
+        dest: /tmp/aur_packages
     - name: Install aur packages
       ansible.builtin.shell:
         executable: /usr/bin/expect
