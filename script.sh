@@ -9,8 +9,6 @@
 # Format the partitions
 # Check if there should be a home partition
 ROOT_MOUNT="/mnt/root"
-# XXX: Replace this with pulling the ansible repo via curl or smth
-ANSIBLE_PLAYBOOK_SOURCE="mkdir -p $ROOT_MOUNT/root/ansible-playbook && cp -r /mnt/ansible/* $ROOT_MOUNT/root/ansible-playbook/"
 
 function format_partitions() {
   # NOTE: Can be made more intilligent by checking the partiton type and formatting accordingly
@@ -105,15 +103,21 @@ if  ! arch-chroot $ROOT_MOUNT /bin/bash -c "which ansible-playbook" ; then
 fi
 
 echo "Retrieving the ansible playbook from the source"
-eval $ANSIBLE_PLAYBOOK_SOURCE
+git clone https://github.com/OZoneGuy/home-pc-ansible.git $ROOT_MOUNT/ansible-playbook
 
-if [ -f $ROOT_MOUNT/root/ansible-playbook/pass ]; then
+if [ -f $ROOT_MOUNT/root/ansible-playbook/pass ] &&\
+  ! ansible-vault view --vault-password-file=$ROOT_MOUNT/root/ansible-playbook/pass $ROOT_MOUNT --output - > /dev/null ; then
   echo "Vault password already exists"
 else
+  echo "Vault password does not exist or is incorrect"
   read -p "Enter the vault password:" -s vault_password
   echo $vault_password > $ROOT_MOUNT/root/ansible-playbook/pass
 fi
 
 echo "Running the ansible playbook"
-arch-chroot $ROOT_MOUNT /bin/bash -c "ansible-playbook /root/ansible-playbook/main_playbook.yaml --vault-password-file=/root/ansible-playbook/pass -e @/root/ansible-playbook/vars.yaml -e @/root/ansible-playbook/secrets.yaml"
+arch-chroot $ROOT_MOUNT /bin/bash -c "ansible-playbook\
+  --vault-password-file=/root/ansible-playbook/pass\
+  -e @/root/ansible-playbook/vars.yaml\ 
+  -e @/root/ansible-playbook/secrets.yaml\ 
+  /root/ansible-playbook/main_playbook.yaml"
 
