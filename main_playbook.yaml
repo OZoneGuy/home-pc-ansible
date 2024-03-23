@@ -254,15 +254,14 @@
         size: 4096
         state: present
         owner: "{{ username }}"
-    - name: Add SSH key to agent
-      community.general.ssh_key:
-        keyfile: /home/{{ username }}/.ssh/github
-        state: present
+      register: github_ssh_key
     - name: Add SSH key to config
       community.general.ssh_config:
-        user: git
+        user: "{{ username }}"
+        add_keys_to_agent: true
+        remote_user: git
         host: github.com
-        identityfile: /home/{{ username }}/.ssh/github
+        identity_file: /home/{{ username }}/.ssh/github
         state: present
     - name: Push ssh key to github
       ansible.builtin.uri:
