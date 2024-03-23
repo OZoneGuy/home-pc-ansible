@@ -317,27 +317,43 @@
         dest: /tmp/ghcup
         mode: "0755"
     - name: Run the ghcup install script
-      ansible.builtin.command:
-        cmd: /tmp/ghcup
+      ansible.builtin.shell:
+        executable: /bin/expect
+        cmd: | 
+          spawn /tmp/ghcup
+          expect {
+            "Press ENTER*" {
+              send -- "\n"
+              exp_continue
+            }
+            "*Yes, prepend*" {
+              send -- "\n"
+              exp_continue
+            }
+            "*Yes*" {
+              send -- "\n"
+              exp_continue
+            
+            }
+            eof
+          }
         creates: /home/{{ username }}/.ghcup/bin/ghcup
       changed_when: true
     - name: Install ghc
-      ansible.builtin.command: ghcup install ghc latest
+      ansible.builtin.command: /home/{{ username }}/.ghcup/bin/ghcup install ghc latest
       changed_when: true
     - name: Install cabal
-      ansible.builtin.command: ghcup install cabal recommended
+      ansible.builtin.command: /home/{{ username }}/.ghcup/bin/ghcup install cabal recommended
       changed_when: true
     - name: Install stack
-      ansible.builtin.command: ghcup install stack recommended
+      ansible.builtin.command: /home/{{ username }}/.ghcup/bin/ghcup install stack recommended
       changed_when: true
     - name: Install xmonad
-      ansible.builtin.command: stack install
+      ansible.builtin.command:
+        cmd: /home/{{ username }}/.ghcup/bin/stack install
+        chdir: /home/{{ username }}/.xmonad
       register: xmonad_install_res
-      changed_when: xmomad_install_res.rc == 0
-    - name: Compile xmonad
-      ansible.builtin.command: xmonad --recompile
-      register: xmonad_recompile_res
-      changed_when: xmonad_recompile_res.rc == 0
+      changed_when: xmonad_install_res.rc == 0
 - name: Setup systemd units
   hosts: localhost
   connection: local
