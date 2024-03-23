@@ -53,11 +53,16 @@
         home: /home/{{ username }}
         createhome: yes
         groups: "{{ user_groups }}"
+    - name: Install sudo
+      community.general.pacman:
+        name: sudo
+        state: present
     - name: Add to sudoers
-      ansible.builtin.lineinfile:
-        path: /etc/sudoers
-        line: "%wheel ALL=(ALL) ALL"
-        validate: 'visudo -cf %s'
+      community.general.sudoers:
+        name: Add wheel group to sudoers
+        group: wheel
+        commands: ALL
+        nopassword: false
 - name: Setup bootloader
   hosts: localhost
   connection: local
