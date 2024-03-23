@@ -5,5 +5,11 @@ A collection of Ansible playbooks to set up my home PC in case it is formatted f
 To start the setup, run the following command:
 
 ```bash
-curl -s https://raw.githubusercontent.com/OZoneGuy/home-pc-ansible/master/setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/OZoneGuy/home-pc-ansible/master/setup.sh | bash
+```
+ 
+or
+
+```bash
+wget -qO- https://raw.githubusercontent.com/OZoneGuy/home-pc-ansible/master/setup.sh | bash
 ```
