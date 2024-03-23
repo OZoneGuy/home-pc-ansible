@@ -122,10 +122,10 @@
           - pacman-mirrorlist
           - parallel
           - rustup
-          - python-pexpect # Needed for the expect module
           - expect
           - python-jmespath # Needed for json_query
         state: present
+        update_cache: true
     - name: Update mirror list
       ansible.builtin.shell: |
         curl -s "https://archlinux.org/mirrorlist/?country=FR&country=GB&protocol=https&use_mirror_status=on" |\
