@@ -67,6 +67,8 @@
   hosts: localhost
   connection: local
   tasks:
+    - name: Initramfs
+      ansible.builtin.command: mkinitcpio -P
     - name: Set up bootloader (systemd-boot)
       ansible.builtin.command:
         cmd: bootctl install
@@ -403,4 +405,4 @@
     - name: Set user's shell
       ansible.builtin.user:
         name: "{{ username }}"
-        shell: /usr/bin/zsh
+        shell: /usr/bin/fish
