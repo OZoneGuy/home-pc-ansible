@@ -79,7 +79,6 @@
         owner: root
         group: root
         mode: "0644"
-      notify: Reboot
     # Get the microcode package name
     - name: Get the processor vendor
       ansible.builtin.set_fact:
