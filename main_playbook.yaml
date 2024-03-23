@@ -374,11 +374,12 @@
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: yes
-        state: reloaded
     - name: Clone activity-reporter
       ansible.builtin.git:
         repo: git@github.com:OZoneGuy/activity-reporter.git
         dest: /home/{{ username }}/projects/activity-reporter
+        accept_newhostkey: yes
+        key_file: "{{ github_ssh_key.filename }}"
     - name: Install activity-reporter
       ansible.builtin.command: 
         cmd: go install
