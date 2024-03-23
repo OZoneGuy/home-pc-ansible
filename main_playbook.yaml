@@ -356,6 +356,13 @@
         chdir: /home/{{ username }}/.xmonad
       register: xmonad_install_res
       changed_when: xmonad_install_res.rc == 0
+    - name: Create desktop entry
+      ansible.builtin.template:
+        src: /root/ansible-playbook/templates/xmonad.desktop.j2
+        dest: /usr/share/xsessions/xmonad.desktop
+        owner: root
+      become: true
+      become_user: root
 - name: Setup systemd units
   hosts: localhost
   connection: local
