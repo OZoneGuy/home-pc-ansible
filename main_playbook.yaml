@@ -400,6 +400,19 @@
         enabled: yes
         state: started
       loop: "{{ systemd_units.files }}"
+    - name: Enable other units
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: yes
+        state: started
+      loop:
+        - "cronie.service"
+        - "NetworkManager.service"
+        - "bluetooth.target"
+        - "sshd.service"
+        - "docker.socket"
+        - "lightdm.service"
+
 - name: Clean up
   connection: local
   hosts: localhost
