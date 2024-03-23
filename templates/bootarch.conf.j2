@@ -2,4 +2,4 @@ title Arch
 linux /vmlinuz-linux
 initrd /{{ microcode_name }}.img
 initrd /initramfs-linux.img
-options root="{{ root_partition }}" rw
+options root="/dev/{{ root_partition }}" rw
