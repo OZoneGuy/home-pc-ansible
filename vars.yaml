@@ -1,5 +1,6 @@
 username: "omar"
 hostname: "BIGARCH"
+dotfiles_repo: "git@github.com:OZoneGuy/dot-files.git"
 user_groups:
  - vboxusers
  - libvirt
