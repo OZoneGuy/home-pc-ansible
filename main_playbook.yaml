@@ -242,6 +242,11 @@
   become: true
   become_user: "{{ username }}"
   tasks:
+    - name: Create .ssh directory
+      ansible.builtin.file:
+        path: /home/{{ username }}/.ssh
+        state: directory
+        owner: "{{ username }}"
     - name: Create SSH key for github
       community.crypto.openssh_keypair:
         path: /home/{{ username }}/.ssh/github
