@@ -283,8 +283,11 @@
         repo: "{{ dotfiles_repo }}"
         bare: yes
         accept_newhostkey: yes
-        separate_git_dir: /home/{{ username }}/.dotfiles
-        dest: /home/{{ username }}/
+        dest: /home/{{ username }}/.dotfiles
+    - name: Checkout dotfiles
+      ansible.builtin.command: git --git-dir=/home/{{ username }}/.dotfiles --work-tree=/home/{{ username }} checkout
+      register: dotfiles_checkout_res
+      changed_when: dotfiles_checkout_res.rc == 0
     - name: Copy crontab
       ansible.builtin.template:
         src: /root/ansible-playbook/templates/crontab.j2
