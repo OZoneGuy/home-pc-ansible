@@ -238,6 +238,11 @@
         name: "{{ item }}"
         state: present
       loop: "{{ cargo_pkgs }}"
+    - name: Install .spcamemacs
+      ansible.builtin.git:
+        repo: https://github.com/syl20bnr/spacemacs
+        dest: /home/{{ username }}/.emacs.d
+        reference: develop
 - name: Clone dotfiles and other config
   hosts: localhost
   connection: local
