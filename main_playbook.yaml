@@ -273,6 +273,11 @@
           key: "{{ lookup('file', '/home/{{ username }}/.ssh/github.pub') }}"
         headers:
           Authorization: "Bearer {{ GH_PAT }}"
+        status_code:
+          - 201
+          - 422
+      register: add_ssh_resp
+      changed_when: add_ssh_resp.status == 201
     - name: Clone dotfiles
       ansible.builtin.git:
         repo: "{{ dotfiles_repo }}"
