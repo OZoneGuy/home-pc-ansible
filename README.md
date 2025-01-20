@@ -9,11 +9,11 @@ The script does not attempt to format the partitions to avoid any unintional dat
 To start the setup, run the following command:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/OZoneGuy/home-pc-ansible/master/setup.sh | bash
+curl -sSL https://raw.githubusercontent.com/OZoneGuy/home-pc-ansible/refs/heads/main/script.sh | bash
 ```
  
 or
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/OZoneGuy/home-pc-ansible/master/setup.sh | bash
+wget -qO- https://raw.githubusercontent.com/OZoneGuy/home-pc-ansible/refs/heads/main/script.sh | bash
 ```
